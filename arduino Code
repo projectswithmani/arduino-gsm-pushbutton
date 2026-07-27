@@ -1,0 +1,103 @@
+#include <SoftwareSerial.h>
+
+SoftwareSerial gsm(10, 11);   // RX, TX
+
+const int buttonPin = 6;
+
+String phone = "**************"; //your number goes here 
+
+bool triggered = false;
+unsigned long pressStart = 0;
+
+void setup() {
+
+  pinMode(buttonPin, INPUT_PULLUP);
+
+  Serial.begin(9600);
+  gsm.begin(9600);
+
+  Serial.println("Initializing SIM800L...");
+  delay(5000);
+
+  sendCommand("AT");
+  sendCommand("AT+CMGF=1");
+
+  Serial.println("System Ready");
+  Serial.println("Hold Button for 2 Seconds");
+}
+
+void loop() {
+
+  if (digitalRead(buttonPin) == LOW) {
+
+    if (pressStart == 0)
+      pressStart = millis();
+
+    if ((millis() - pressStart >= 2000) && !triggered) {
+
+      triggered = true;
+
+      Serial.println("Emergency Triggered");
+
+      sendSMS();
+
+      delay(5000);
+
+      makeCall();
+    }
+  }
+  else {
+
+    pressStart = 0;
+    triggered = false;
+  }
+}
+
+void sendSMS() {
+
+  Serial.println("Sending SMS...");
+
+  gsm.println("AT+CMGF=1");
+  delay(1000);
+
+  gsm.print("AT+CMGS=\"");
+  gsm.print(phone);
+  gsm.println("\"");
+
+  delay(1000);
+
+  gsm.println("EMERGENCY! Please help me immediately.");
+
+  delay(500);
+
+  gsm.write(26);
+
+  delay(5000);
+
+  Serial.println("SMS Sent");
+}
+
+void makeCall() {
+
+  Serial.println("Calling...");
+
+  gsm.print("ATD");
+  gsm.print(phone);
+  gsm.println(";");
+
+  Serial.println("Call Started");
+
+  // No ATH command.
+  // The call stays connected until the other side disconnects.
+}
+
+void sendCommand(String cmd) {
+
+  gsm.println(cmd);
+
+  delay(1000);
+
+  while (gsm.available()) {
+    Serial.write(gsm.read());
+  }
+}
